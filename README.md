@@ -37,7 +37,7 @@ The fine CFO is then estimated from the LTF using a similar approach:
 <img src="plot/fine_CFO_eqn.png" width="300"/>
 </p>
 
-The final CFO estimation $\hat{\alpha}=\hat{\alpha}_{STF}+\hat{\alpha}_{LTF}$ is used to correct the CFO for the remaining part of the frame.
+The final CFO estimation α̂ = α̂_{STF} + α̂_{LTF} is used to correct the CFO for the remaining part of the frame.
 
 The plot below shows the pilot symbols after CFO correction and the equalized received symbols on a complex plane.
 
