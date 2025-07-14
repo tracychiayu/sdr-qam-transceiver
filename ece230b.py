@@ -187,3 +187,64 @@ def CFO_estimation(training_sequence, zc_len, zc_count, T):
     estimated_CFO = np.angle(corr) / (2 * np.pi * zc_len * T)
 
     return estimated_CFO
+
+def channel_estimation(tx_pilot, rx_pilot):
+    '''
+    Input:
+        - tx_pilot (np.ndarray or complex): transmitted pilot symbol
+        - rx_pilot (np.ndarray or complex): received pilot symbol
+    Output:
+        - h (np.ndarray or complex): estimated channel response
+    '''
+    h = (np.conj(tx_pilot) * rx_pilot) / (np.conj(tx_pilot) * tx_pilot)
+
+    return h
+
+def custom_corr(x, N, plot=False):
+    """
+    Computes sliding-window normalized correlations between every
+    N-sample segment and the next N-sample segment.
+
+    Parameters:
+    - x : np.ndarray
+        Input signal (1D array, real or complex)
+    - N : int
+        Segment length for correlation
+    - plot : bool
+        Whether to plot correlation values
+
+    Returns:
+    - correlations : np.ndarray (complex)
+        Array of scalar correlation values (one per sliding window)
+    - peak_index : int
+        Index (starting sample) where the maximum correlation magnitude occurs
+    """
+    x = np.asarray(x).flatten()
+    M = len(x)
+    num_windows = M - 2 * N + 1
+
+    if num_windows < 1:
+        raise ValueError("Signal too short for even one sliding N-to-N comparison.")
+
+    correlations = np.zeros(num_windows, dtype=np.complex128)
+
+    for k in range(num_windows):
+        seg1 = x[k : k + N]
+        seg2 = x[k + N : k + 2 * N]
+        correlations[k] = np.vdot(seg1, seg2) / np.sqrt(N) 
+
+    peak_index = np.argmax(np.abs(correlations))  # sample index where max magnitude occurs
+
+    if plot:
+        plt.figure(figsize=(8, 4))
+        plt.plot(np.abs(correlations), label='|correlation|')
+        plt.plot(peak_index, np.abs(correlations[peak_index]), 'ro', label='Peak')
+        plt.title('Sliding N-to-N Correlation')
+        plt.xlabel('Sliding Window Start Index')
+        plt.ylabel('Correlation Magnitude')
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    return correlations, peak_index
