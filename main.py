@@ -29,7 +29,7 @@ tx_cyclic_buffer = True # cyclic nature of transmitter's buffer (True -> continu
 # ---------------------------------------------------------------
 # Initialize Pluto object using issued token.
 # ---------------------------------------------------------------
-sdr = adi.Pluto(token='usJ3chNEcvk') # create Pluto object
+sdr = adi.Pluto(token='t8rLtKrOw2A') # create Pluto object
 sdr.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 # ---------------------------------------------------------------
 # Setup Pluto's transmitter.
@@ -87,7 +87,7 @@ pulse_train = create_pulse_train(tx_symbols, sps)
 # T = 1e-5    # Rs = 1e5 [symbols/sec]
 beta = 0.5
 span = 10
-pulse = get_rc_pulse(beta, span, sps)
+pulse = get_rrc_pulse(beta, span, sps)
 tx_signal = np.convolve(pulse_train, pulse, mode='same')
 
 np.save('tx_signal.npy', tx_signal)
@@ -145,7 +145,7 @@ sdr.rx_destroy_buffer()                   # reset receive data buffer to be safe
 
 # Apply matched filter
 filtered_rx_signal = np.convolve(rx_signal, pulse, mode='same')
-t_rx = np.arange(len(filtered_rx_signal))
+t_rx = np.arange(len(filtered_rx_signal)) / fs   
 
 # ---------------------------------------------------------------
 # 1. Symbol Synchronization
@@ -177,11 +177,11 @@ plt.show()
 # ---------------------------------------------------------------
 # 2. Frame Synchronization: find the starting index of LTF and extract one frame of received symbols
 # ---------------------------------------------------------------
-d = estimate_frame_start(rx_symbols[:6000], zc_len_long)
+d = estimate_frame_start(rx_symbols, zc_len_long)
 print(f'start index of LTF, d = {d}')
-start_index = d - zc_len_short * zc_count_short
-end_index = start_index + N_frame + N_pilots + N + N_zeros
-one_frame_symbols = rx_symbols[start_index+1:end_index+1]
+start_index = d - zc_len_short * zc_count_short + 2
+end_index = start_index + N_frame
+one_frame_symbols = rx_symbols[start_index:end_index]
 
 # Plot one frame of symbols
 plt.figure(figsize=(12,3))
@@ -217,9 +217,9 @@ rx_STF = one_frame_symbols[:zc_len_short*zc_count_short]
 coarse_CFO = CFO_estimation(rx_STF, zc_len_short, zc_count_short, T)
 
 # b. Perform coarse CFO correction on the entire received signal & extract LTF symbols
-rx_signal_coarse_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * coarse_CFO * t_rx * T)  
+rx_signal_coarse_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * coarse_CFO * t_rx)  
 rx_symbols_coarse_CFO = rx_signal_coarse_CFO[sample_offset::sps]
-one_frame_symbols_coarse_CFO = rx_symbols_coarse_CFO[start_index+1:end_index+1]
+one_frame_symbols_coarse_CFO = rx_symbols_coarse_CFO[start_index:end_index]
 LTF_coarse_CFO = one_frame_symbols_coarse_CFO[zc_len_short*zc_count_short:N_train]
 
 # c. Fine CFO correction
@@ -229,9 +229,9 @@ print(f'coarse CFO: {coarse_CFO} Hz')
 print(f'fine CFO: {fine_CFO} Hz')
 
 # d. Perform coarse+fine CFO correction on the received symbols and extract the payload
-rx_signal_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * (coarse_CFO+fine_CFO) * t_rx * T) 
+rx_signal_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * (coarse_CFO+fine_CFO) * t_rx) 
 rx_symbols_CFO = rx_signal_CFO[sample_offset::sps]
-one_frame_symbols_CFO = rx_symbols_CFO[start_index+1:end_index+1]
+one_frame_symbols_CFO = rx_symbols_CFO[start_index:end_index]
 rx_payload_symbols = one_frame_symbols_CFO[N_train+N_pilots:N_train+N_pilots+N]
 
 # Show pilot symbols after CFO correction
@@ -270,7 +270,7 @@ plt.show()
 # ---------------------------------------------------------------
 rx_pilot = np.mean(rx_pilots) 
 tx_pilot = constellation[0]
-estimated_h = (np.conj(tx_pilot) * rx_pilot) / (np.conj(tx_pilot) * tx_pilot) 
+estimated_h = channel_estimation(tx_pilot=tx_pilot, rx_pilot=rx_pilot)
 
 print(f"Transmitted pilot symbol: {tx_pilot}")
 print(f"Received pilot symbol: {rx_pilot}")
@@ -288,9 +288,13 @@ np.save('detected_symbols.npy', detected_symbols)
 
 # Visualize received symbols on complex plane
 plt.figure()
-plt.scatter(np.real(payload_symbols_equalized), np.imag(payload_symbols_equalized), s=6, color='red')
-plt.scatter(np.real(constellation), np.imag(constellation), s=6, color='black')
-plt.xlabel('Real')
-plt.ylabel('Imag')
+plt.scatter(np.real(payload_symbols_equalized), np.imag(payload_symbols_equalized), s=2, color='red', label='Rx Symbols')
+plt.scatter(np.real(constellation), np.imag(constellation), s=12, color='black', label='Tx Symbols')
+plt.title('Received Symbols After Equalization', fontsize=18)
+plt.xlabel('Real', fontsize=16)
+plt.ylabel('Imag', fontsize=16)
+plt.legend(loc='upper left', fontsize=13)
+plt.xlim(-1.5,1.5)
+plt.ylim(-1.5,1.5)
 plt.grid(True)
 plt.show()
