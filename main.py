@@ -29,25 +29,27 @@ tx_cyclic_buffer = True # cyclic nature of transmitter's buffer (True -> continu
 # ---------------------------------------------------------------
 # Initialize Pluto object using issued token.
 # ---------------------------------------------------------------
-sdr = adi.Pluto(token='t8rLtKrOw2A') # create Pluto object
-sdr.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
+sdr1 = adi.Pluto(token='_-yeiowedp4') # create Pluto object
+sdr1.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 # ---------------------------------------------------------------
 # Setup Pluto's transmitter.
 # ---------------------------------------------------------------
-sdr.tx_destroy_buffer() # reset transmit data buffer to be safe
-sdr.tx_rf_bandwidth = int(tx_rf_bw_Hz) # set transmitter RF bandwidth
-sdr.tx_lo = int(tx_carrier_freq_Hz) # set carrier frequency for transmission
-sdr.tx_hardwaregain_chan0 = tx_gain_dB # set the transmit gain
-sdr.tx_cyclic_buffer = tx_cyclic_buffer # set the cyclic nature of the transmit buffer
+sdr1.tx_destroy_buffer() # reset transmit data buffer to be safe
+sdr1.tx_rf_bandwidth = int(tx_rf_bw_Hz) # set transmitter RF bandwidth
+sdr1.tx_lo = int(tx_carrier_freq_Hz) # set carrier frequency for transmission
+sdr1.tx_hardwaregain_chan0 = tx_gain_dB # set the transmit gain
+sdr1.tx_cyclic_buffer = tx_cyclic_buffer # set the cyclic nature of the transmit buffer
 # ---------------------------------------------------------------
 # Setup Pluto's receiver.
 # ---------------------------------------------------------------
-sdr.rx_destroy_buffer() # reset receive data buffer to be safe
-sdr.rx_lo = int(rx_carrier_freq_Hz) # set carrier frequency for reception
-sdr.rx_rf_bandwidth = int(sample_rate) # set receiver RF bandwidth
-sdr.rx_buffer_size = int(rx_buffer_size) # set buffer size of receiver
-sdr.gain_control_mode_chan0 = rx_agc_mode # set gain control mode
-sdr.rx_hardwaregain_chan0 = rx_gain_dB # set gain of receiver
+sdr2 = adi.Pluto(token='_-yeiowedp4') # create Pluto object
+sdr2.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
+sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
+sdr2.rx_lo = int(rx_carrier_freq_Hz) # set carrier frequency for reception
+sdr2.rx_rf_bandwidth = int(sample_rate) # set receiver RF bandwidth
+sdr2.rx_buffer_size = int(rx_buffer_size) # set buffer size of receiver
+sdr2.gain_control_mode_chan0 = rx_agc_mode # set gain control mode
+sdr2.rx_hardwaregain_chan0 = rx_gain_dB # set gain of receiver
 
 # ---------------------------------------------------------------
 # Create transmit signal.
@@ -123,25 +125,25 @@ plt.show()
 # Transmit from Pluto!
 # ---------------------------------------------------------------
 tx_signal_scaled = tx_signal / np.max(np.abs(tx_signal)) * 2**14 # Pluto expects TX samples to be between -2^14 and 2^14 
-sdr.tx(tx_signal_scaled) # will continuously transmit when cyclic buffer set to True
+sdr1.tx(tx_signal_scaled) # will continuously transmit when cyclic buffer set to True
 
 # ---------------------------------------------------------------
 # Receive with Pluto!
 # ---------------------------------------------------------------
-sdr.rx_destroy_buffer() # reset receive data buffer to be safe
+sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
 for i in range(1): # clear buffer to be safe
-    rx_data_ = sdr.rx() # toss them out
+    rx_data_ = sdr2.rx() # toss them out
     
-rx_signal = sdr.rx() # capture raw samples from Pluto
+rx_signal = sdr2.rx() # capture raw samples from Pluto
 np.save('rx_signal.npy', rx_signal)
 
 # ---------------------------------------------------------------
 # Clear buffers to stop transmitting.
 # ---------------------------------------------------------------
-sdr.tx_destroy_buffer()                   # reset transmit data buffer to be safe
-sdr.rx_destroy_buffer()                   # reset receive data buffer to be safe
-# sdr2.tx_destroy_buffer()                   # reset transmit data buffer to be safe
-# sdr2.rx_destroy_buffer()                   # reset receive data buffer to be safe
+sdr1.tx_destroy_buffer()                   # reset transmit data buffer to be safe
+sdr1.rx_destroy_buffer()                   # reset receive data buffer to be safe
+sdr2.tx_destroy_buffer()                   # reset transmit data buffer to be safe
+sdr2.rx_destroy_buffer()                   # reset receive data buffer to be safe
 
 # Apply matched filter
 filtered_rx_signal = np.convolve(rx_signal, pulse, mode='same')
@@ -290,11 +292,14 @@ np.save('detected_symbols.npy', detected_symbols)
 plt.figure()
 plt.scatter(np.real(payload_symbols_equalized), np.imag(payload_symbols_equalized), s=2, color='red', label='Rx Symbols')
 plt.scatter(np.real(constellation), np.imag(constellation), s=12, color='black', label='Tx Symbols')
-plt.title('Received Symbols After Equalization', fontsize=18)
-plt.xlabel('Real', fontsize=16)
-plt.ylabel('Imag', fontsize=16)
+# plt.title(f'Received Symbols After Equalization -- loopback SDR (SER = {SER})', fontsize=16)
+plt.title(f'Received Symbols After Equalization -- OTA SDRs (SER = {SER})', fontsize=16)
+plt.xlabel('Real', fontsize=14)
+plt.ylabel('Imag', fontsize=14)
 plt.legend(loc='upper left', fontsize=13)
 plt.xlim(-1.5,1.5)
 plt.ylim(-1.5,1.5)
+plt.xticks(fontsize=11)
+plt.yticks(fontsize=11)
 plt.grid(True)
 plt.show()
