@@ -27,9 +27,9 @@ rx_agc_mode = 'manual' # receiver's AGC mode: 'manual', 'slow_attack', or 'fast_
 rx_buffer_size = 500e3 # receiver's buffer size (in samples), length of data returned by sdr.rx()
 tx_cyclic_buffer = True # cyclic nature of transmitter's buffer (True -> continuously repeat transmission)
 # ---------------------------------------------------------------
-# Initialize Pluto object using issued token.
+# Initialize Pluto object using issued token.  
 # ---------------------------------------------------------------
-sdr1 = adi.Pluto(token='_-yeiowedp4') # create Pluto object
+sdr1 = adi.Pluto(token='f4mJ-J4HLws') # create Pluto object (SDR 3)
 sdr1.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 # ---------------------------------------------------------------
 # Setup Pluto's transmitter.
@@ -42,7 +42,7 @@ sdr1.tx_cyclic_buffer = tx_cyclic_buffer # set the cyclic nature of the transmit
 # ---------------------------------------------------------------
 # Setup Pluto's receiver.
 # ---------------------------------------------------------------
-sdr2 = adi.Pluto(token='_-yeiowedp4') # create Pluto object
+sdr2 = adi.Pluto(token='bBvnXQSB3XQ') # create Pluto object (SDR 4)
 sdr2.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
 sdr2.rx_lo = int(rx_carrier_freq_Hz) # set carrier frequency for reception
@@ -57,7 +57,7 @@ sdr2.rx_hardwaregain_chan0 = rx_gain_dB # set gain of receiver
 
 # Part I: Generate 1000 random 64-QAM symbols
 N = 1000
-M = 16
+M = 64
 symbols, constellation = gen_rand_qam_symbols(N, M)
 sps = 10   # samples per symbol
 np.save('tx_symbols.npy', symbols)
@@ -181,7 +181,7 @@ plt.show()
 # ---------------------------------------------------------------
 d = estimate_frame_start(rx_symbols, zc_len_long)
 print(f'start index of LTF, d = {d}')
-start_index = d - zc_len_short * zc_count_short + 2
+start_index = d - zc_len_short * zc_count_short
 end_index = start_index + N_frame
 one_frame_symbols = rx_symbols[start_index:end_index]
 
