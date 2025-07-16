@@ -1,0 +1,11 @@
+*.npy
+/plot_old
+/constellation
+/__pycache__
+/submission
+230B_lab2_report.docx
+cfo_test.py
+230b_lab3.ipynb
+freq_sync.py
+playground.ipynb
+.DS_Store
