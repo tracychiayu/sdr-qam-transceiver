@@ -13,6 +13,8 @@ fs = 1e6 # baseband sampling rate (samples per second)
 ts = 1 / fs # baseband sampling period (seconds per sample)
 sps = 10 # samples per data symbol
 T = ts * sps # time between data symbols (seconds per symbol)
+NUM_SYMBOLS_TO_SCAN = 40000
+
 # ---------------------------------------------------------------
 # Pluto system parameters.
 # ---------------------------------------------------------------
@@ -179,7 +181,7 @@ plt.show()
 # ---------------------------------------------------------------
 # 2. Frame Synchronization: find the starting index of LTF and extract one frame of received symbols
 # ---------------------------------------------------------------
-d = estimate_frame_start(rx_symbols, zc_len_long)
+d = estimate_frame_start(rx_symbols[:NUM_SYMBOLS_TO_SCAN], zc_len_long)
 print(f'start index of LTF, d = {d}')
 start_index = d - zc_len_short * zc_count_short
 end_index = start_index + N_frame
