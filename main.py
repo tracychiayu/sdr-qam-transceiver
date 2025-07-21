@@ -14,6 +14,7 @@ ts = 1 / fs # baseband sampling period (seconds per sample)
 sps = 10 # samples per data symbol
 T = ts * sps # time between data symbols (seconds per symbol)
 NUM_SYMBOLS_TO_SCAN = 40000
+offs = np.arange(-sps, sps+1)   # account for frame sync off
 
 # ---------------------------------------------------------------
 # Pluto system parameters.
@@ -31,7 +32,7 @@ tx_cyclic_buffer = True # cyclic nature of transmitter's buffer (True -> continu
 # ---------------------------------------------------------------
 # Initialize Pluto object using issued token.  
 # ---------------------------------------------------------------
-sdr1 = adi.Pluto(token='f4mJ-J4HLws') # create Pluto object (SDR 3)
+sdr1 = adi.Pluto(token='PhEnLHeWVCQ') # create Pluto object (SDR 3)
 sdr1.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 # ---------------------------------------------------------------
 # Setup Pluto's transmitter.
@@ -44,7 +45,7 @@ sdr1.tx_cyclic_buffer = tx_cyclic_buffer # set the cyclic nature of the transmit
 # ---------------------------------------------------------------
 # Setup Pluto's receiver.
 # ---------------------------------------------------------------
-sdr2 = adi.Pluto(token='bBvnXQSB3XQ') # create Pluto object (SDR 4)
+sdr2 = adi.Pluto(token='qNFbsuAQeyk') # create Pluto object (SDR 4)
 sdr2.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
 sdr2.rx_lo = int(rx_carrier_freq_Hz) # set carrier frequency for reception
@@ -183,109 +184,114 @@ plt.show()
 # ---------------------------------------------------------------
 d = estimate_frame_start(rx_symbols[:NUM_SYMBOLS_TO_SCAN], zc_len_long)
 print(f'start index of LTF, d = {d}')
-start_index = d - zc_len_short * zc_count_short
-end_index = start_index + N_frame
-one_frame_symbols = rx_symbols[start_index:end_index]
+num_of_errors = []
+for off in offs:
+    start_index = d - zc_len_short * zc_count_short + off
+    end_index = start_index + N_frame
+    one_frame_symbols = rx_symbols[start_index:end_index]
 
-# Plot one frame of symbols
-plt.figure(figsize=(12,3))
-markerline, stemlines, baseline = plt.stem(np.arange(len(one_frame_symbols)), np.real(one_frame_symbols))
-plt.setp(baseline, visible=False)
-plt.setp(markerline, markersize=3)
-for i in range(1,16):
-    plt.axvline(x=zc_len_short*i, linestyle='--', linewidth=1, color='gray')
-plt.axvline(x=zc_len_short*16, linestyle='--', linewidth=1, color='black')
-plt.axvline(x=(zc_len_short*16+zc_len_long), linestyle='--', linewidth=1, color='gray')
-plt.axvline(x=N_train, linestyle='--', linewidth=1, color='black')
-plt.axvline(x=(N_train+N_pilots), linestyle='--', linewidth=1, color='black')
-plt.axvline(x=(N_train+N_pilots+N), linestyle='--', linewidth=1, color='black')
+    # # Plot one frame of symbols
+    # plt.figure(figsize=(12,3))
+    # markerline, stemlines, baseline = plt.stem(np.arange(len(one_frame_symbols)), np.real(one_frame_symbols))
+    # plt.setp(baseline, visible=False)
+    # plt.setp(markerline, markersize=3)
+    # for i in range(1,16):
+    #     plt.axvline(x=zc_len_short*i, linestyle='--', linewidth=1, color='gray')
+    # plt.axvline(x=zc_len_short*16, linestyle='--', linewidth=1, color='black')
+    # plt.axvline(x=(zc_len_short*16+zc_len_long), linestyle='--', linewidth=1, color='gray')
+    # plt.axvline(x=N_train, linestyle='--', linewidth=1, color='black')
+    # plt.axvline(x=(N_train+N_pilots), linestyle='--', linewidth=1, color='black')
+    # plt.axvline(x=(N_train+N_pilots+N), linestyle='--', linewidth=1, color='black')
 
-plt.axvspan(0, zc_len_short*16, color='purple', alpha=0.1, label='Short Training Field (STF)')
-plt.axvspan(zc_len_short*16, N_train, color='blue', alpha=0.1, label='Short Training Field (STF)')
-plt.axvspan(N_train, (N_train+N_pilots), color='red', alpha=0.3, label='Pilot') 
-plt.axvspan((N_train+N_pilots), (N_train+N_pilots+N), color='gray', alpha=0.1, label='Payload')  
-plt.axvspan((N_train+N_pilots+N), (N_train+N_pilots+N+N_zeros), color='green', alpha=0.1, label='Zero Padding')
-plt.title('One Frame of Received Symbols (real)', fontsize=20)
-plt.xlabel('Sample Index', fontsize=14)
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-plt.xlim(0,N_frame)
-plt.grid(True)
-plt.show()
+    # plt.axvspan(0, zc_len_short*16, color='purple', alpha=0.1, label='Short Training Field (STF)')
+    # plt.axvspan(zc_len_short*16, N_train, color='blue', alpha=0.1, label='Short Training Field (STF)')
+    # plt.axvspan(N_train, (N_train+N_pilots), color='red', alpha=0.3, label='Pilot') 
+    # plt.axvspan((N_train+N_pilots), (N_train+N_pilots+N), color='gray', alpha=0.1, label='Payload')  
+    # plt.axvspan((N_train+N_pilots+N), (N_train+N_pilots+N+N_zeros), color='green', alpha=0.1, label='Zero Padding')
+    # plt.title('One Frame of Received Symbols (real)', fontsize=20)
+    # plt.xlabel('Sample Index', fontsize=14)
+    # plt.xticks(fontsize=12)
+    # plt.yticks(fontsize=12)
+    # plt.xlim(0,N_frame)
+    # plt.grid(True)
+    # plt.show()
 
-# ---------------------------------------------------------------
-# 3. Frequency Synchronization: coarse and fine CFO correction
-# ---------------------------------------------------------------
-# a. Coarse CFO correction
-rx_STF = one_frame_symbols[:zc_len_short*zc_count_short]
-coarse_CFO = CFO_estimation(rx_STF, zc_len_short, zc_count_short, T)
+    # ---------------------------------------------------------------
+    # 3. Frequency Synchronization: coarse and fine CFO correction
+    # ---------------------------------------------------------------
+    # a. Coarse CFO correction
+    rx_STF = one_frame_symbols[:zc_len_short*zc_count_short]
+    coarse_CFO = CFO_estimation(rx_STF, zc_len_short, zc_count_short, T)
 
-# b. Perform coarse CFO correction on the entire received signal & extract LTF symbols
-rx_signal_coarse_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * coarse_CFO * t_rx)  
-rx_symbols_coarse_CFO = rx_signal_coarse_CFO[sample_offset::sps]
-one_frame_symbols_coarse_CFO = rx_symbols_coarse_CFO[start_index:end_index]
-LTF_coarse_CFO = one_frame_symbols_coarse_CFO[zc_len_short*zc_count_short:N_train]
+    # b. Perform coarse CFO correction on the entire received signal & extract LTF symbols
+    rx_signal_coarse_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * coarse_CFO * t_rx)  
+    rx_symbols_coarse_CFO = rx_signal_coarse_CFO[sample_offset::sps]
+    one_frame_symbols_coarse_CFO = rx_symbols_coarse_CFO[start_index:end_index]
+    LTF_coarse_CFO = one_frame_symbols_coarse_CFO[zc_len_short*zc_count_short:N_train]
 
-# c. Fine CFO correction
-fine_CFO = CFO_estimation(LTF_coarse_CFO, zc_len_long, zc_count_long, T)
+    # c. Fine CFO correction
+    fine_CFO = CFO_estimation(LTF_coarse_CFO, zc_len_long, zc_count_long, T)
 
-print(f'coarse CFO: {coarse_CFO} Hz')
-print(f'fine CFO: {fine_CFO} Hz')
+    print(f'coarse CFO: {coarse_CFO} Hz')
+    print(f'fine CFO: {fine_CFO} Hz')
 
-# d. Perform coarse+fine CFO correction on the received symbols and extract the payload
-rx_signal_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * (coarse_CFO+fine_CFO) * t_rx) 
-rx_symbols_CFO = rx_signal_CFO[sample_offset::sps]
-one_frame_symbols_CFO = rx_symbols_CFO[start_index:end_index]
-rx_payload_symbols = one_frame_symbols_CFO[N_train+N_pilots:N_train+N_pilots+N]
+    # d. Perform coarse+fine CFO correction on the received symbols and extract the payload
+    rx_signal_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * (coarse_CFO+fine_CFO) * t_rx) 
+    rx_symbols_CFO = rx_signal_CFO[sample_offset::sps]
+    one_frame_symbols_CFO = rx_symbols_CFO[start_index:end_index]
+    rx_payload_symbols = one_frame_symbols_CFO[N_train+N_pilots:N_train+N_pilots+N]
 
-# Show pilot symbols after CFO correction
-rx_pilots = one_frame_symbols_CFO[N_train:N_train+N_pilots]
+    # Show pilot symbols after CFO correction
+    rx_pilots = one_frame_symbols_CFO[N_train:N_train+N_pilots]
 
-plt.figure()
-plt.suptitle('Received Pilot Symbols After CFO Correction', fontsize=20)
-plt.subplot(2,1,1)
-markerline, stemlines, baseline = plt.stem(np.arange(N_pilots), np.real(pilots))
-plt.setp(baseline, visible=False)
-plt.setp(markerline, markersize=4)
-plt.title('Real Component', fontsize=18)
-plt.xlabel('Sample Index', fontsize=14)
-plt.ylabel('Amplitude', fontsize=14)
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-plt.xlim(0,N_pilots)
-plt.grid(True)
+    # plt.figure()
+    # plt.suptitle('Received Pilot Symbols After CFO Correction', fontsize=20)
+    # plt.subplot(2,1,1)
+    # markerline, stemlines, baseline = plt.stem(np.arange(N_pilots), np.real(pilots))
+    # plt.setp(baseline, visible=False)
+    # plt.setp(markerline, markersize=4)
+    # plt.title('Real Component', fontsize=18)
+    # plt.xlabel('Sample Index', fontsize=14)
+    # plt.ylabel('Amplitude', fontsize=14)
+    # plt.xticks(fontsize=12)
+    # plt.yticks(fontsize=12)
+    # plt.xlim(0,N_pilots)
+    # plt.grid(True)
 
-plt.subplot(2,1,2)
-markerline, stemlines, baseline = plt.stem(np.arange(N_pilots), np.imag(pilots))
-plt.setp(baseline, visible=False)
-plt.setp(markerline, markersize=4)
-plt.title('Imaginary Component', fontsize=18)
-plt.xlabel('Sample Index', fontsize=14)
-plt.ylabel('Amplitude', fontsize=14)
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-plt.xlim(0,N_pilots)
-plt.grid(True)
-plt.tight_layout()
-plt.show()
+    # plt.subplot(2,1,2)
+    # markerline, stemlines, baseline = plt.stem(np.arange(N_pilots), np.imag(pilots))
+    # plt.setp(baseline, visible=False)
+    # plt.setp(markerline, markersize=4)
+    # plt.title('Imaginary Component', fontsize=18)
+    # plt.xlabel('Sample Index', fontsize=14)
+    # plt.ylabel('Amplitude', fontsize=14)
+    # plt.xticks(fontsize=12)
+    # plt.yticks(fontsize=12)
+    # plt.xlim(0,N_pilots)
+    # plt.grid(True)
+    # plt.tight_layout()
+    # plt.show()
 
-# ---------------------------------------------------------------
-# Channel Equalization
-# ---------------------------------------------------------------
-rx_pilot = np.mean(rx_pilots) 
-tx_pilot = constellation[0]
-estimated_h = channel_estimation(tx_pilot=tx_pilot, rx_pilot=rx_pilot)
+    # ---------------------------------------------------------------
+    # Channel Equalization
+    # ---------------------------------------------------------------
+    rx_pilot = np.mean(rx_pilots) 
+    tx_pilot = constellation[0]
+    estimated_h = channel_estimation(tx_pilot=tx_pilot, rx_pilot=rx_pilot)
 
-print(f"Transmitted pilot symbol: {tx_pilot}")
-print(f"Received pilot symbol: {rx_pilot}")
-print(f"Estimated channel h: {estimated_h}")
+    print(f"Transmitted pilot symbol: {tx_pilot}")
+    print(f"Received pilot symbol: {rx_pilot}")
+    print(f"Estimated channel h: {estimated_h}")
 
-rx_symbols_equalized = one_frame_symbols_CFO / estimated_h
-payload_symbols_equalized = rx_symbols_equalized[N_train+N_pilots:N_train+N_pilots+N]
+    rx_symbols_equalized = one_frame_symbols_CFO / estimated_h
+    payload_symbols_equalized = rx_symbols_equalized[N_train+N_pilots:N_train+N_pilots+N]
 
-# Calculate SER
-detected_symbols = qam_symbols_detection(payload_symbols_equalized, M)
-SER = np.sum(detected_symbols != symbols) / len(symbols)
+    # Calculate SER
+    detected_symbols = qam_symbols_detection(payload_symbols_equalized, M)
+    num_of_errors.append(np.sum(detected_symbols != symbols))
+
+print(f"Best off: {np.argmin(num_of_errors)-sps}")
+SER = np.min(num_of_errors) / N
 print(f"Symbol Error Rate (SER): {SER:.4f}")
 
 np.save('detected_symbols.npy', detected_symbols)
