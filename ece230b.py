@@ -134,7 +134,7 @@ def zadoff_chu_seq(q, N_zc):
 
     return t_q
 
-def estimate_frame_start(rx_symbols, N_tr):
+def estimate_frame_start(rx_symbols, N_tr, plot=False):
     '''
     Input:
         - rx_symbols: received symbols extracted after symbol synchronization
@@ -154,19 +154,20 @@ def estimate_frame_start(rx_symbols, N_tr):
 
     # Search for peak correlation after the STF region 
     # This ensures d is large enough to extract a full frame later
-    d_relative = np.argmax(corr[STF_len:]) 
+    d_relative = np.argmax(np.abs(corr[STF_len:])) 
     d = d_relative + STF_len   # adjust index back to original scale
 
-    plt.figure(figsize=(12,4))
-    plt.plot(corr)
-    plt.axvline(x=d, linestyle='--',color='r', label=f"LTF start at index: {d}")
-    plt.title('Self-Correlation Output for Frame Synchronization', fontsize=20)
-    plt.xlabel('Sample Index', fontsize=14)
-    plt.legend(loc='best', fontsize=16)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.grid(True)
-    plt.show()
+    if plot:
+        plt.figure(figsize=(12,4))
+        plt.plot(corr)
+        plt.axvline(x=d, linestyle='--',color='r', label=f"LTF start at index: {d}")
+        plt.title('Self-Correlation Output for Frame Synchronization', fontsize=20)
+        plt.xlabel('Symbol Index', fontsize=14)
+        plt.legend(loc='best', fontsize=16)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.grid(True)
+        plt.show()
 
     return d
 
