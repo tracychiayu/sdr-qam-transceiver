@@ -1,5 +1,5 @@
 # SDR QAM Transceiver
-This project implements a complete digital communication system using Software Defined Radio (SDR). It transmits a QAM-modulated signal over the air and performs all essential baseband processing steps on the receiver side, including:
+This project implements a complete digital communication system using Software Defined Radio (SDR). It transmits a QAM-modulated signal over the air between two seperate SDR devices and performs all essential baseband processing steps on the receiver side, including:
 - Matched filtering
 - Symbol synchronization
 - Frame synchronization
@@ -115,14 +115,24 @@ Suppose the channel is flat fading. The channel is estimated using the **Least S
 The estimated channel response is given by: $\hat{h}_{LS} = \frac{\bar{x}\cdot y}{\bar{x}\cdot x}$, where $x$ is the known transmit pilot symbol, $y$ is the received pilot symbol, and $\bar{x}$ denotes the complex conjugate of $x$.
 
 ## Result
-The below figures below show the received symbols plotted on the complex plane. For the **16-QAM** case, the symbol error rate (SER) is **0.0**, indicating perfect symbol recovery. For the **64-QAM case**, the SER is **0.001**, showing a small number of symbol errors due to the higher modulation complexity.
+Over-the-air (OTA) transmission between two SDRs with a transmit gain of –10 dB and receive gain of 40 dB produced a symbol error rate (SER) of **0.0060** for 64-QAM and **0.2860** for 256-QAM. The significantly higher SER in 256-QAM can be attributed to its higher modulation order.
 
-The **total estimated CFO** is **-517.087 Hz**, composed of a **coarse CFO estimate** of **–518.321 Hz** and a **fine CFO correction** of **+1.234 Hz**.
+Additionally, the use of a single complex channel estimate to equalize all payload symbols may not sufficiently compensate for channel variation or frequency selectivity present in the OTA environment, further impacting high-order modulation performance.
+
+The **total estimated CFO** is **–517.087 Hz**, composed of a **coarse CFO estimate** of **–518.321 Hz** and a **fine CFO correction** of **+1.234 Hz**.
+
+The following two plots show the received symbols after equalization for 64-QAM and 256-QAM on the complex plane. The red points represent the received symbols, and the black points represent ideal transmitted constellation points.
 
 <p align="center">
-<img src="plot/16qam_constellation_ota_sdr.png" width="550"/>
+<img src="plot/64qam_constellation_ota_sdr_-10dB.png" width="550"/>
 </p>
 
 <p align="center">
-<img src="plot/64qam_constellation_ota_sdr.png" width="580"/>
+<img src="plot/256qam_constellation_ota_sdr_-10dB.png" width="580"/>
 </p>
+
+The plot below illustrates how SER varies with transmit gain $G_{tx}$ for 64-QAM and 256-QAM in OTA transmissions between two SDRs. As $G_{tx}$ increases from –50 dB to –25 dB, the SER decreases for both modulation schemes due to increased transmit power. However, 256-QAM consistently exhibits higher SER than 64-QAM across all transmit gains. The improvement trend for 64-QAM becomes more pronounced at higher transmit gains, whereas 256-QAM shows only moderate improvement, suggesting it is more vulnerable to residual impairments in the hardware and the signal processing pipeline (e.g., limited channel estimation and synchronization accuracy). 
+
+<p align="center">
+<img src="plot/SER_vs_Gtx.png" width="450"/>
+</p> 
