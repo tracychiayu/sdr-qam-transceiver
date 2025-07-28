@@ -10,6 +10,7 @@ This project implements a complete digital communication system using Software D
 ## File Description
 - `main.py`: The main script that runs the full transmit-receive pipeline. It sets up the Pluto SDR, performs all signal processing steps, and evaluates SER.
 - `ece230b.py`: Contains all utility functions used in the project.
+- `plot_util.py`:  Contains all plotting functions used to visualize frame structure, time-domain signals, and constellation diagrams.
 
 ## Signal Processing Flow and Visualization
 
