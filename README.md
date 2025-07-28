@@ -7,6 +7,10 @@ This project implements a complete digital communication system using Software D
 - Channel estimation and equalization
 - Symbol detection and Symbol Error Rate (SER) evaluation
 
+<p align="center">
+<img src="plot/pulse_shaping_to_symbol_detection_flowchart.png" width="800"/>
+</p>
+
 ## File Description
 - `main.py`: The main script that runs the full transmit-receive pipeline. It sets up the Pluto SDR, performs all signal processing steps, and evaluates SER.
 - `ece230b.py`: Contains all utility functions used in the project.
@@ -33,14 +37,6 @@ To extract symbols from a matched-filtered received signal, the signal is evalua
 </p>
 
 ### Frame Symchronization
-<!-- Since the the Pluto SDR transmits multiple identical copies of the signal, we need to extract a single frame from the repeated copies at the receiver. To do this, we perform **self-correlation** on the symbol-synchronized signal, using a correlation length of `zc_len_long = 937`, which matches the length of the Long Training Field (LTF). 
-
-The correlation result shows several peaks, each indicating a repeated copy. We choose the peak with the highest value, located at index `d`. The figure below shows that this peak occurs at index d = 31228.
-
-The start of the frame is computed by substracting the length of Short Training Field (STF) from d: `start_index = d - zc_len_short * zc_count_short`.
-
-The end of the frame is then calculated as: `end_index = start_index + N_frame`, where `N_frame` is the number of symbols in a fame. -->
-
 Frame synchronization is performed by detecting the starting index of a repeated Long Training Field (LTF) in the symbol-synchronizaed signal using the following steps:
 - A sliding window moves across the signal to compute the complex correlation between each segment and its delayed version.
 - The magnitude of this correlation peaks when the two repeated sequences (e.g., two LTFs) are aligned.
