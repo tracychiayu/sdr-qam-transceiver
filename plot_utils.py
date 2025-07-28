@@ -27,7 +27,7 @@ def plot_tx_signal(tx_signal, config):
     N = config['N']
     N_zeros = config['N_zeros']
 
-    plt.figure(figsize=(15, 6))
+    plt.figure(figsize=(15, 8))
     plt.subplot(2,1,1)
     plt.plot(np.arange(len(tx_signal)), np.real(tx_signal), zorder=1)
     plt.scatter(np.arange(0, len(tx_signal), sps), np.real(tx_signal[::sps]), s=2, color='red', zorder=2)
