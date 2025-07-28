@@ -84,7 +84,7 @@ The 16 identical length-31 Zadoff-Chu sequences in **Short Training Field (STF)*
 <img src="plot/coarse_CFO_eqn.png" width="300"/>
 </p>
 
-Once the coarse CFO estimation is obtained, correction is applied to the **Long Training Sequence (LTF)** symbols, denoted by $L_m$ for $m=0,...,1873$.
+Once the coarse CFO estimation is obtained, coarse CFO correction is applied to the **Long Training Sequence (LTF)** symbols, denoted by $L_m$ for $m=0,...,1873$.
 
 The fine CFO is then estimated from the LTF using a similar approach:
 
