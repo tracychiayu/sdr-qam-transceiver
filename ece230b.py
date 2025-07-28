@@ -134,6 +134,31 @@ def zadoff_chu_seq(q, N_zc):
 
     return t_q
 
+def detect_symbol_sync_offset(signal, sps):
+    '''
+    Estimate the optimal sample offset for symbol synchronization using
+    the Maximum Output Energy (MOE) criterion.
+
+    Input
+        - signal: Matched filtered signal (complex samples)
+        - sps: Samples per symbol
+    Output
+        - sample_offset: Estimated sample offset for best symbol synchronization
+    '''
+
+    # Find symbol offset using MOE
+    offset = np.arange(sps)
+    E_output = []   # output energy
+    for tau in offset:
+        samples = signal[tau::sps]
+        energy = np.mean(np.abs(samples)**2)
+        E_output.append(energy)
+
+    sample_offset = np.argmax(E_output)
+    print(f'Sample offset: {sample_offset}')
+
+    return sample_offset
+
 def estimate_frame_start(rx_symbols, N_tr, plot=False):
     '''
     Input:

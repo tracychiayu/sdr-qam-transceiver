@@ -144,15 +144,7 @@ t_rx = np.arange(len(filtered_rx_signal)) / fs
 # 1. Symbol Synchronization
 # ---------------------------------------------------------------
 # a. Find symbol offset using MOE
-offset = np.arange(sps)
-E_output = []   # output energy
-for tau in offset:
-    samples = filtered_rx_signal[tau::sps]
-    energy = np.mean(np.abs(samples)**2)
-    E_output.append(energy)
-
-sample_offset = np.argmax(E_output)
-print(f'Sample offset: {sample_offset}')
+sample_offset = detect_symbol_sync_offset(filtered_rx_signal, sps)
 
 # b. Use the estimated sample offset to extract and downsample symbol-rate samples
 rx_symbols = filtered_rx_signal[sample_offset::sps]
