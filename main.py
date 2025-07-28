@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from ece230b import *
+from plot_utils import *
 from remoteRF.drivers.adalm_pluto import * 
 from scipy.signal import correlate
 
@@ -32,7 +33,7 @@ tx_cyclic_buffer = True # cyclic nature of transmitter's buffer (True -> continu
 # ---------------------------------------------------------------
 # Initialize Pluto object using issued token.  
 # ---------------------------------------------------------------
-sdr1 = adi.Pluto(token='PhEnLHeWVCQ') # create Pluto object (SDR 3)
+sdr1 = adi.Pluto(token='LiIDWAzUhCk') # create Pluto object (SDR 3)
 sdr1.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 # ---------------------------------------------------------------
 # Setup Pluto's transmitter.
@@ -45,7 +46,7 @@ sdr1.tx_cyclic_buffer = tx_cyclic_buffer # set the cyclic nature of the transmit
 # ---------------------------------------------------------------
 # Setup Pluto's receiver.
 # ---------------------------------------------------------------
-sdr2 = adi.Pluto(token='qNFbsuAQeyk') # create Pluto object (SDR 4)
+sdr2 = adi.Pluto(token='LiIDWAzUhCk') # create Pluto object (SDR 4)
 sdr2.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
 sdr2.rx_lo = int(rx_carrier_freq_Hz) # set carrier frequency for reception
@@ -98,32 +99,19 @@ tx_signal = np.convolve(pulse_train, pulse, mode='same')
 np.save('tx_signal.npy', tx_signal)
 
 # Show the transmit signal
-plt.figure(figsize=(16,4))
-plt.plot(np.arange(len(tx_signal)), np.real(tx_signal), zorder=1)
-plt.scatter(np.arange(0,len(tx_signal),sps), np.real(tx_signal[::sps]), s=2, color='red', zorder=2)
-for i in range(1,zc_count_short):
-    plt.axvline(x=zc_len_short*i*sps, linestyle='--', linewidth=1, color='gray')
-plt.axvline(x=zc_len_short*zc_count_short*sps, linestyle='--', linewidth=1, color='black')
-plt.axvline(x=(zc_len_short*zc_count_short+zc_len_long)*sps, linestyle='--', linewidth=1, color='gray')
-plt.axvline(x=N_train*sps, linestyle='--', linewidth=1, color='black')
-plt.axvline(x=(N_train+N_pilots)*sps, linestyle='--', linewidth=1, color='black')
-plt.axvline(x=(N_train+N_pilots+N)*sps, linestyle='--', linewidth=1, color='black')
+config = {
+    'sps': sps,
+    'zc_len_short': zc_len_short,
+    'zc_count_short': zc_count_short,
+    'zc_len_long': zc_len_long,
+    'N_train': N_train,  
+    'N_pilots': N_pilots,
+    'N': N,
+    'N_zeros': N_zeros
+}
 
-plt.axvspan(0, zc_len_short*zc_count_short*sps, color='purple', alpha=0.1, label='Short Training Field (STF)')
-plt.axvspan(zc_len_short*zc_count_short*sps, N_train*sps, color='blue', alpha=0.1, label='Short Training Field (STF)')
-plt.axvspan(N_train*sps, (N_train+N_pilots)*sps, color='red', alpha=0.3, label='Pilot') 
-plt.axvspan((N_train+N_pilots)*sps, (N_train+N_pilots+N)*sps, color='gray', alpha=0.1, label='Payload')  
-plt.axvspan((N_train+N_pilots+N)*sps, (N_train+N_pilots+N+N_zeros)*sps, color='green', alpha=0.1, label='Zero Padding')
-plt.title(f'Transmit Signal (real)', fontsize=20)
-plt.xlabel('Sample Index', fontsize=16)
-plt.ylabel('Amplitude', fontsize=16)
-plt.xlim(0,(N_train+N_pilots+N+N_zeros)*sps)
-plt.ylim(-3,3)
-plt.xticks(fontsize=12)
-plt.legend(loc='lower left', bbox_to_anchor=(-0.02, -1), prop={'size': 14})
-plt.grid(True)
+plot_tx_signal(tx_signal, config)
 
-plt.show()
 # ---------------------------------------------------------------
 # Transmit from Pluto!
 # ---------------------------------------------------------------
@@ -171,13 +159,7 @@ rx_symbols = filtered_rx_signal[sample_offset::sps]
 np.save('rx_symbols.npy', rx_symbols)
 
 # Plot the received symbols
-plt.figure()
-markerline, stemlines, baseline = plt.stem(np.arange(len(rx_symbols)), rx_symbols)
-plt.setp(baseline, visible=False)
-plt.setp(markerline, markersize=3)
-plt.title('Received Symbols', fontsize=14)
-plt.grid(True)
-plt.show()
+stem_plot(rx_symbols, 'Received Symbols')
 
 # ---------------------------------------------------------------
 # 2. Frame Synchronization: find the starting index of LTF and extract one frame of received symbols
@@ -189,32 +171,6 @@ for off in offs:
     start_index = d - zc_len_short * zc_count_short + off
     end_index = start_index + N_frame
     one_frame_symbols = rx_symbols[start_index:end_index]
-
-    # # Plot one frame of symbols
-    # plt.figure(figsize=(12,3))
-    # markerline, stemlines, baseline = plt.stem(np.arange(len(one_frame_symbols)), np.real(one_frame_symbols))
-    # plt.setp(baseline, visible=False)
-    # plt.setp(markerline, markersize=3)
-    # for i in range(1,16):
-    #     plt.axvline(x=zc_len_short*i, linestyle='--', linewidth=1, color='gray')
-    # plt.axvline(x=zc_len_short*16, linestyle='--', linewidth=1, color='black')
-    # plt.axvline(x=(zc_len_short*16+zc_len_long), linestyle='--', linewidth=1, color='gray')
-    # plt.axvline(x=N_train, linestyle='--', linewidth=1, color='black')
-    # plt.axvline(x=(N_train+N_pilots), linestyle='--', linewidth=1, color='black')
-    # plt.axvline(x=(N_train+N_pilots+N), linestyle='--', linewidth=1, color='black')
-
-    # plt.axvspan(0, zc_len_short*16, color='purple', alpha=0.1, label='Short Training Field (STF)')
-    # plt.axvspan(zc_len_short*16, N_train, color='blue', alpha=0.1, label='Short Training Field (STF)')
-    # plt.axvspan(N_train, (N_train+N_pilots), color='red', alpha=0.3, label='Pilot') 
-    # plt.axvspan((N_train+N_pilots), (N_train+N_pilots+N), color='gray', alpha=0.1, label='Payload')  
-    # plt.axvspan((N_train+N_pilots+N), (N_train+N_pilots+N+N_zeros), color='green', alpha=0.1, label='Zero Padding')
-    # plt.title('One Frame of Received Symbols (real)', fontsize=20)
-    # plt.xlabel('Sample Index', fontsize=14)
-    # plt.xticks(fontsize=12)
-    # plt.yticks(fontsize=12)
-    # plt.xlim(0,N_frame)
-    # plt.grid(True)
-    # plt.show()
 
     # ---------------------------------------------------------------
     # 3. Frequency Synchronization: coarse and fine CFO correction
@@ -244,34 +200,6 @@ for off in offs:
     # Show pilot symbols after CFO correction
     rx_pilots = one_frame_symbols_CFO[N_train:N_train+N_pilots]
 
-    # plt.figure()
-    # plt.suptitle('Received Pilot Symbols After CFO Correction', fontsize=20)
-    # plt.subplot(2,1,1)
-    # markerline, stemlines, baseline = plt.stem(np.arange(N_pilots), np.real(pilots))
-    # plt.setp(baseline, visible=False)
-    # plt.setp(markerline, markersize=4)
-    # plt.title('Real Component', fontsize=18)
-    # plt.xlabel('Sample Index', fontsize=14)
-    # plt.ylabel('Amplitude', fontsize=14)
-    # plt.xticks(fontsize=12)
-    # plt.yticks(fontsize=12)
-    # plt.xlim(0,N_pilots)
-    # plt.grid(True)
-
-    # plt.subplot(2,1,2)
-    # markerline, stemlines, baseline = plt.stem(np.arange(N_pilots), np.imag(pilots))
-    # plt.setp(baseline, visible=False)
-    # plt.setp(markerline, markersize=4)
-    # plt.title('Imaginary Component', fontsize=18)
-    # plt.xlabel('Sample Index', fontsize=14)
-    # plt.ylabel('Amplitude', fontsize=14)
-    # plt.xticks(fontsize=12)
-    # plt.yticks(fontsize=12)
-    # plt.xlim(0,N_pilots)
-    # plt.grid(True)
-    # plt.tight_layout()
-    # plt.show()
-
     # ---------------------------------------------------------------
     # Channel Equalization
     # ---------------------------------------------------------------
@@ -297,17 +225,4 @@ print(f"Symbol Error Rate (SER): {SER:.4f}")
 np.save('detected_symbols.npy', detected_symbols)
 
 # Visualize received symbols on complex plane
-plt.figure()
-plt.scatter(np.real(payload_symbols_equalized), np.imag(payload_symbols_equalized), s=2, color='red', label='Rx Symbols')
-plt.scatter(np.real(constellation), np.imag(constellation), s=12, color='black', label='Tx Symbols')
-# plt.title(f'Received Symbols After Equalization -- loopback SDR (SER = {SER})', fontsize=16)
-plt.title(f'Received Symbols After Equalization -- OTA SDRs (SER = {SER})', fontsize=16)
-plt.xlabel('Real', fontsize=14)
-plt.ylabel('Imag', fontsize=14)
-plt.legend(loc='upper left', fontsize=13)
-plt.xlim(-1.5,1.5)
-plt.ylim(-1.5,1.5)
-plt.xticks(fontsize=11)
-plt.yticks(fontsize=11)
-plt.grid(True)
-plt.show()
+plot_constellation(payload_symbols_equalized, constellation, SER)
