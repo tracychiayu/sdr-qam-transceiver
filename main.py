@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from ece230b import *
 from plot_utils import *
 from remoteRF.drivers.adalm_pluto import * 
@@ -15,7 +16,8 @@ ts = 1 / fs # baseband sampling period (seconds per sample)
 sps = 10 # samples per data symbol
 T = ts * sps # time between data symbols (seconds per symbol)
 NUM_SYMBOLS_TO_SCAN = 40000
-offs = np.arange(-sps, sps+1)   # account for frame sync off
+# offs = np.arange(-sps, sps+1)   # account for frame sync off
+# offs = [0]
 
 # ---------------------------------------------------------------
 # Pluto system parameters.
@@ -33,7 +35,7 @@ tx_cyclic_buffer = True # cyclic nature of transmitter's buffer (True -> continu
 # ---------------------------------------------------------------
 # Initialize Pluto object using issued token.  
 # ---------------------------------------------------------------
-sdr1 = adi.Pluto(token='LiIDWAzUhCk') # create Pluto object (SDR 3)
+sdr1 = adi.Pluto(token='-dVUqb0zZYE') # create Pluto object (SDR 3)
 sdr1.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 # ---------------------------------------------------------------
 # Setup Pluto's transmitter.
@@ -46,7 +48,7 @@ sdr1.tx_cyclic_buffer = tx_cyclic_buffer # set the cyclic nature of the transmit
 # ---------------------------------------------------------------
 # Setup Pluto's receiver.
 # ---------------------------------------------------------------
-sdr2 = adi.Pluto(token='LiIDWAzUhCk') # create Pluto object (SDR 4)
+sdr2 = adi.Pluto(token='-dVUqb0zZYE') # create Pluto object (SDR 4)
 sdr2.sample_rate = int(sample_rate) # set baseband sampling rate of Pluto
 sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
 sdr2.rx_lo = int(rx_carrier_freq_Hz) # set carrier frequency for reception
@@ -110,7 +112,7 @@ config = {
     'N_zeros': N_zeros
 }
 
-plot_tx_signal(tx_signal, config)
+# plot_tx_signal(tx_signal, config)
 
 # ---------------------------------------------------------------
 # Transmit from Pluto!
@@ -121,6 +123,7 @@ sdr1.tx(tx_signal_scaled) # will continuously transmit when cyclic buffer set to
 # ---------------------------------------------------------------
 # Receive with Pluto!
 # ---------------------------------------------------------------
+time.sleep(0.1)
 sdr2.rx_destroy_buffer() # reset receive data buffer to be safe
 for i in range(1): # clear buffer to be safe
     rx_data_ = sdr2.rx() # toss them out
@@ -151,70 +154,73 @@ rx_symbols = filtered_rx_signal[sample_offset::sps]
 np.save('rx_symbols.npy', rx_symbols)
 
 # Plot the received symbols
-stem_plot(rx_symbols, 'Received Symbols')
+# stem_plot(rx_symbols, 'Received Symbols')
 
 # ---------------------------------------------------------------
 # 2. Frame Synchronization: find the starting index of LTF and extract one frame of received symbols
 # ---------------------------------------------------------------
-d = estimate_frame_start(rx_symbols[:NUM_SYMBOLS_TO_SCAN], zc_len_long)
+# d = estimate_frame_start(rx_symbols[:NUM_SYMBOLS_TO_SCAN], zc_len_long)
+_, d = custom_corr(x=rx_symbols[:NUM_SYMBOLS_TO_SCAN], N=zc_len_long, plot=False)
 print(f'start index of LTF, d = {d}')
-num_of_errors = []
-for off in offs:
-    start_index = d - zc_len_short * zc_count_short + off
-    end_index = start_index + N_frame
-    one_frame_symbols = rx_symbols[start_index:end_index]
 
-    # ---------------------------------------------------------------
-    # 3. Frequency Synchronization: coarse and fine CFO correction
-    # ---------------------------------------------------------------
-    # a. Coarse CFO correction
-    rx_STF = one_frame_symbols[:zc_len_short*zc_count_short]
-    coarse_CFO = CFO_estimation(rx_STF, zc_len_short, zc_count_short, T)
 
-    # b. Perform coarse CFO correction on the entire received signal & extract LTF symbols
-    rx_signal_coarse_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * coarse_CFO * t_rx)  
-    rx_symbols_coarse_CFO = rx_signal_coarse_CFO[sample_offset::sps]
-    one_frame_symbols_coarse_CFO = rx_symbols_coarse_CFO[start_index:end_index]
-    LTF_coarse_CFO = one_frame_symbols_coarse_CFO[zc_len_short*zc_count_short:N_train]
+start_index = d - zc_len_short * zc_count_short
+end_index = start_index + N_frame
+one_frame_symbols = rx_symbols[start_index:end_index]
 
-    # c. Fine CFO correction
-    fine_CFO = CFO_estimation(LTF_coarse_CFO, zc_len_long, zc_count_long, T)
+# ---------------------------------------------------------------
+# 3. Frequency Synchronization: coarse and fine CFO correction
+# ---------------------------------------------------------------
+# a. Coarse CFO correction
+rx_STF = one_frame_symbols[:zc_len_short*zc_count_short]
+coarse_CFO = CFO_estimation(rx_STF, zc_len_short, zc_count_short, T)
 
-    print(f'coarse CFO: {coarse_CFO} Hz')
-    print(f'fine CFO: {fine_CFO} Hz')
+# b. Perform coarse CFO correction on the entire received signal & extract LTF symbols
+rx_signal_coarse_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * coarse_CFO * t_rx)  
+rx_symbols_coarse_CFO = rx_signal_coarse_CFO[sample_offset::sps]
+one_frame_symbols_coarse_CFO = rx_symbols_coarse_CFO[start_index:end_index]
+LTF_coarse_CFO = one_frame_symbols_coarse_CFO[zc_len_short*zc_count_short:N_train]
 
-    # d. Perform coarse+fine CFO correction on the received symbols and extract the payload
-    rx_signal_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * (coarse_CFO+fine_CFO) * t_rx) 
-    rx_symbols_CFO = rx_signal_CFO[sample_offset::sps]
-    one_frame_symbols_CFO = rx_symbols_CFO[start_index:end_index]
-    rx_payload_symbols = one_frame_symbols_CFO[N_train+N_pilots:N_train+N_pilots+N]
+# c. Fine CFO correction
+fine_CFO = CFO_estimation(LTF_coarse_CFO, zc_len_long, zc_count_long, T)
 
-    # Show pilot symbols after CFO correction
-    rx_pilots = one_frame_symbols_CFO[N_train:N_train+N_pilots]
+print(f'coarse CFO: {coarse_CFO} Hz')
+print(f'fine CFO: {fine_CFO} Hz')
 
-    # ---------------------------------------------------------------
-    # Channel Equalization
-    # ---------------------------------------------------------------
-    rx_pilot = np.mean(rx_pilots) 
-    tx_pilot = constellation[0]
-    estimated_h = channel_estimation(tx_pilot=tx_pilot, rx_pilot=rx_pilot)
+# d. Perform coarse+fine CFO correction on the received symbols and extract the payload
+rx_signal_CFO = filtered_rx_signal * np.exp(-1j * 2 * np.pi * (coarse_CFO+fine_CFO) * t_rx) 
+rx_symbols_CFO = rx_signal_CFO[sample_offset::sps]
+one_frame_symbols_CFO = rx_symbols_CFO[start_index:end_index]
+rx_payload_symbols = one_frame_symbols_CFO[N_train+N_pilots:N_train+N_pilots+N]
 
-    print(f"Transmitted pilot symbol: {tx_pilot}")
-    print(f"Received pilot symbol: {rx_pilot}")
-    print(f"Estimated channel h: {estimated_h}")
+# Show pilot symbols after CFO correction
+rx_pilots = one_frame_symbols_CFO[N_train:N_train+N_pilots]
 
-    rx_symbols_equalized = one_frame_symbols_CFO / estimated_h
-    payload_symbols_equalized = rx_symbols_equalized[N_train+N_pilots:N_train+N_pilots+N]
+# ---------------------------------------------------------------
+# Channel Equalization
+# ---------------------------------------------------------------
+rx_pilot = np.mean(rx_pilots) 
+tx_pilot = constellation[0]
+estimated_h = channel_estimation(tx_pilot=tx_pilot, rx_pilot=rx_pilot)
 
-    # Calculate SER
-    detected_symbols = qam_symbols_detection(payload_symbols_equalized, M)
-    num_of_errors.append(np.sum(detected_symbols != symbols))
+print(f"Transmitted pilot symbol: {tx_pilot}")
+print(f"Received pilot symbol: {rx_pilot}")
+print(f"Estimated channel h: {estimated_h}")
 
-print(f"Best off: {np.argmin(num_of_errors)-sps}")
-SER = np.min(num_of_errors) / N
+# Perform channel equalization on the entire received symbols
+rx_symbols_equalized = rx_symbols_CFO / estimated_h
+
+# Extract out payload symbols
+payload_start = d + zc_len_long * zc_count_long + N_pilots
+payload_end = payload_start + N
+payload_symbols_equalized = rx_symbols_equalized[payload_start:payload_end]
+
+# Calculate SER
+detected_symbols = qam_symbols_detection(payload_symbols_equalized, M)
+
+SER = np.sum(detected_symbols != symbols) / N
 print(f"Symbol Error Rate (SER): {SER:.4f}")
 
-np.save('detected_symbols.npy', detected_symbols)
 
 # Visualize received symbols on complex plane
 plot_constellation(payload_symbols_equalized, constellation, SER)
